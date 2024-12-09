@@ -20,7 +20,7 @@
                 <label>Resource</label>
                 <select class="select2 form-control select" name="resource">
                     <option value="products" {{ request()->resource == "products"  ? 'selected' : ''}}>Medicines</option>
-                    <option value="purchases" {{ request()->resource == "purchases"  ? 'selected' : ''}}>Stocks</option>
+                    <option value="purchases" {{ request()->resource == "purchases"  ? 'selected' : ''}}>Purchases</option>
                     <option value="sales" {{ request()->resource == "sales"  ? 'selected' : ''}}>Sales</option>
                 </select>
             </div>
