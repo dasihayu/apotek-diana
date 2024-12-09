@@ -39,64 +39,73 @@ class SalesController extends Controller
 
 
 
+
     public function store(Request $request)
     {
-        $this->validate($request, [
-            'product' => 'required',
-            'quantity' => 'required|integer|min:1'
-        ]);
-        $sold_product = Product::find($request->product);
+        try {
+            $orderData = $request->input('order_data');
 
-        $purchased_item = Purchase::find($sold_product->purchase->id);
+            foreach ($orderData as $order) {
+                $this->validate($request, [
+                    'order_data.*.productId' => 'required|exists:products,id',
+                    'order_data.*.quantity' => 'required|integer|min:1'
+                ]);
 
-        if (!empty($request->edit_id)) {
-            $sales_quantity = Sales::find($request->edit_id)->quantity;
-            $purchased_item->increment('quantity',  $sales_quantity);
-        }
+                $sold_product = Product::find($order['productId']);
+                $purchased_item = Purchase::find($sold_product->purchase->id);
 
-        $new_quantity = ($purchased_item->quantity) - ($request->quantity);
-        $notification = '';
+                if (!empty($request->edit_id)) {
+                    $sales_quantity = Sales::find($request->edit_id)->quantity;
+                    $purchased_item->increment('quantity', $sales_quantity);
+                }
 
-        if (!($new_quantity < 0)) {
+                $new_quantity = ($purchased_item->quantity) - ($order['quantity']);
+                $notification = '';
 
-            Sales::updateOrCreate(
-                ['id' => $request->edit_id],
-                [
-                    'product_id' => $request->product,
-                    'quantity' => $request->quantity,
-                    'total_price' => ($request->quantity) * ($sold_product->price),
-                ]
-            );
+                if (!($new_quantity < 0)) {
+                    Sales::updateOrCreate(
+                        ['id' => $request->edit_id],
+                        [
+                            'product_id' => $order['productId'],
+                            'quantity' => $order['quantity'],
+                            'total_price' => ($order['quantity']) * ($sold_product->price),
+                        ]
+                    );
 
-            $purchased_item->update([
-                'quantity' => $new_quantity,
-            ]);
+                    $purchased_item->update([
+                        'quantity' => $new_quantity,
+                    ]);
 
-            $notification = array(
-                'success' => "Medicine sold successfully!!",
-            );
+                    $notification = array(
+                        'message' => "Medicine sold successfully!!",
+                        'alert-type' => 'success'
+                    );
 
-            if ($new_quantity <= 1 || $new_quantity == 0) {
+                    if ($new_quantity <= 1 || $new_quantity == 0) {
+                        event(new MedicineOutStock($purchased_item));
+                        $notification = array(
+                            'message' => "Medicine is running out of stock!!!",
+                            'alert-type' => 'error'
+                        );
+                    }
+                } elseif ($order['quantity'] > $purchased_item->quantity) {
+                    $notification = array(
+                        'message' => "Medicine request quantity can not be greater than available quantity!!!  " . ' Available Quantity is ' . ($purchased_item->quantity),
+                        'alert-type' => 'error'
+                    );
 
-                event(new MedicineOutStock($purchased_item));
-                // end of notification
-                $notification = array(
-                    'error' => "Medicine is running out of stock!!!",
-                );
+                    if (!empty($request->edit_id)) {
+                        $sales_quantity = Sales::find($request->edit_id)->quantity;
+                        $purchased_item->decrement('quantity', $sales_quantity);
+                    }
+                    return response()->json($notification);
+                }
             }
-        } elseif ($request->quantity > $purchased_item->quantity) {
-            $notification = array(
-                'error' => "Medicine request quantity can not be grater than available quantity!!!  " . ' Available Quantity is ' . ($purchased_item->quantity),
-            );
 
-            if (!empty($request->edit_id)) {
-                $sales_quantity = Sales::find($request->edit_id)->quantity;
-                $purchased_item->decrement('quantity',  $sales_quantity);
-            }
-            return back()->with($notification);
+            return response()->json(['success' => true, 'message' => 'Order placed successfully!']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
         }
-
-        return back()->with($notification);
     }
 
 

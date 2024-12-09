@@ -28,76 +28,7 @@
     </div>
     <div class="row">
         <div class="col-md-8">
-
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5>Available Medicines</h5>
-                    <div class="card-header-right">
-                        <div class="btn-group card-option">
-                            <button type="button" class="btn dropdown-toggle btn-icon" data-toggle="dropdown"
-                                aria-haspopup="true" aria-expanded="false">
-                                <i class="feather icon-more-horizontal"></i>
-                            </button>
-                            <ul class="list-unstyled card-option dropdown-menu dropdown-menu-right">
-                                <li class="dropdown-item full-card"><a href="#!"><span><i
-                                                class="feather icon-maximize"></i>
-                                            maximize</span><span style="display:none"><i class="feather icon-minimize"></i>
-                                            Restore</span></a>
-                                </li>
-                                <li class="dropdown-item minimize-card"><a href="#!"><span><i
-                                                class="feather icon-minus"></i> collapse</span><span style="display:none"><i
-                                                class="feather icon-plus"></i> expand</span></a></li>
-                                <li class="dropdown-item reload-card"><a href="#!"><i
-                                            class="feather icon-refresh-cw"></i>
-                                        reload</a></li>
-                                <li class="dropdown-item close-card"><a href="#!"><i class="feather icon-trash"></i>
-                                        remove</a></li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <!-- Search Bar -->
-                    <form action="{{ route('sales') }}" method="GET" class="mb-4">
-                        <div class="input-group">
-                            <input type="text" name="search" class="form-control"
-                                placeholder="Search products by name..." value="{{ request('search') }}">
-                            <button class="btn btn-primary" type="submit">
-                                <i class="fe fe-search"></i> Search
-                            </button>
-                        </div>
-                    </form>
-
-                    <!-- Product List -->
-                    <div class="row">
-                        @forelse ($products as $product)
-                            <div class="col-md-4 mb-3">
-                                <div class="card text-center shadow-sm">
-                                    <div class="card-body">
-                                        <img src="{{ asset('storage/purchases/' . $product->purchase->image) }}"
-                                            alt="{{ $product->purchase->name }}" class="img-fluid mb-3"
-                                            style="max-height: 100px; object-fit: contain;">
-                                        <h6 class="card-title text-primary"><strong>{{ $product->purchase->name }}</strong>
-                                        </h6>
-                                        <p class="text-muted">Stock: {{ $product->purchase->quantity }}</p>
-                                        <p><strong>{{ AppSettings::get('app_currency', 'IDR') }}
-                                                {{ number_format($product->price, 2) }}</strong></p>
-                                        <button class="btn btn-warning btn-sm add-to-cart" data-id="{{ $product->id }}"
-                                            data-name="{{ $product->purchase->name }}" data-price="{{ $product->price }}">
-                                            <i class="fa fa-plus"></i> Add
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        @empty
-                            <div class="col-12">
-                                <p class="text-muted text-center">No products found.</p>
-                            </div>
-                        @endforelse
-                    </div>
-                </div>
-
-            </div>
+            @include('sales.medicine')
 
             <!-- Recent Sales -->
             <div class="card">
@@ -157,8 +88,7 @@
                                                             <a data-id="{{ $sale->id }}"
                                                                 data-product="{{ $sale->product_id }}"
                                                                 data-quantity="{{ $sale->quantity }}"
-                                                                class="btn btn-sm btn-info editbtn"
-                                                                href="javascript:void(0);">
+                                                                class="btn btn-sm btn-info editbtn" href="javascript:void(0);">
                                                                 <i class="fe fe-pencil"></i> Edit
                                                             </a>
                                                         @else
@@ -213,6 +143,22 @@
         document.addEventListener('DOMContentLoaded', () => {
             const ordersList = document.getElementById('current-orders-list');
 
+            // Function to update the totals
+            function updateTotals() {
+                let total = 0;
+
+                document.querySelectorAll('#current-orders-list .total-price').forEach(priceElement => {
+                    const priceText = priceElement.textContent.replace(/,/g, '');
+                    total += parseFloat(priceText);
+                });
+
+                // Update the subtotal display
+                document.querySelector('span#subtotal').textContent = `Rp. ${total.toLocaleString()}`;
+                const tax = total * 0.1; // Example tax rate of 10%
+                document.querySelector('span#tax').textContent = `Rp. ${tax.toLocaleString()}`;
+                document.querySelector('span#total').textContent = `Rp. ${(total + tax).toLocaleString()}`;
+            }
+
             // Event listener for "Add to Cart" buttons
             document.querySelectorAll('.add-to-cart').forEach(button => {
                 button.addEventListener('click', function() {
@@ -231,7 +177,8 @@
                         // Update the total price
                         let totalPriceElement = existingItem.querySelector('.total-price');
                         totalPriceElement.textContent =
-                            `IDR ${(productPrice * (currentQuantity + 1)).toLocaleString()}`;
+                            `${(productPrice * (currentQuantity + 1)).toLocaleString()}`;
+                        updateTotals();
                         return;
                     }
 
@@ -241,19 +188,19 @@
                     orderItem.classList.add('list-group-item', 'd-flex', 'justify-content-between',
                         'align-items-center');
                     orderItem.innerHTML = `
-        <div class="d-flex align-items-center px-2 w-50">
-          ${productName}
-        </div>
-        <div class="quantity-controls d-flex align-items-center justify-content-center">
-          <button class="btn btn-secondary btn-sm decrement-quantity" data-id="${productId}" data-price="${productPrice}">-</button>
-          <input type="number" class="quantity-input mx-1 p-1 w-25" value="1" min="1" readonly>
-          <button class="btn btn-secondary btn-sm increment-quantity" data-id="${productId}" data-price="${productPrice}">+</button>
-        </div>
-        <strong><span class="total-price mx-2">${productPrice.toLocaleString()}</span></strong>
-        <button class="btn btn-danger btn-sm remove-item" data-id="${productId}">
-          <i class="fa fa-trash"></i>
-        </button>
-      `;
+                        <div class="d-flex align-items-center px-2 w-50">
+                        ${productName}
+                        </div>
+                        <div class="quantity-controls d-flex align-items-center justify-content-center">
+                        <button class="btn btn-secondary btn-sm decrement-quantity" data-id="${productId}" data-price="${productPrice}">-</button>
+                        <input type="number" class="quantity-input mx-1 p-1 w-25" value="1" min="1" readonly>
+                        <button class="btn btn-secondary btn-sm increment-quantity" data-id="${productId}" data-price="${productPrice}">+</button>
+                        </div>
+                        <strong><span class="total-price mx-2">${productPrice.toLocaleString()}</span></strong>
+                        <button class="btn btn-danger btn-sm remove-item" data-id="${productId}">
+                        <i class="fa fa-trash"></i>
+                        </button>
+                    `;
 
                     // Add to the list
                     ordersList.appendChild(orderItem);
@@ -300,58 +247,90 @@
                 });
             });
 
-            // Function to update the totals
-            function updateTotals() {
-                let total = 0;
+            // Function to collect order data
+            function collectOrderData() {
+                let orders = [];
+                document.querySelectorAll('#current-orders-list li').forEach(item => {
+                    const productId = item.id.replace('order-item-', '');
+                    const quantity = item.querySelector('.quantity-input').value;
+                    orders.push({
+                        productId,
+                        quantity
+                    });
+                });
+                return orders;
+            }
 
-                document.querySelectorAll('#current-orders-list .total-price').forEach(priceElement => {
-                    const priceText = priceElement.textContent.replace('IDR ', '').replace(/,/g, '');
-                    total += parseFloat(priceText);
+            // Event listener for "Proceed to Payment" button
+            document.getElementById('proceed-to-payment').addEventListener('click', function() {
+                const orderData = collectOrderData();
+                document.getElementById('order-data').value = JSON.stringify(orderData);
+
+                // Submit the form using AJAX
+                fetch(document.getElementById('order-form').action, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
+                        },
+                        body: JSON.stringify({
+                            order_data: orderData
+                        })
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        // Handle the response from the server
+                        console.log(data);
+                        if (data.success) {
+                            alert('Order placed successfully!');
+                            window.location.reload();
+                        } else {
+                            alert('There was an error placing the order.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('There was an error processing your request.');
+                    });
+            });
+
+            // Tambahkan updateTotals di event listener add/remove
+            document.querySelectorAll('.add-to-cart').forEach(button => {
+                button.addEventListener('click', function() {
+                    updateTotals();
+                });
+            });
+            document.querySelectorAll('.remove-item').forEach(button => {
+                button.addEventListener('click', function() {
+                    updateTotals();
+                });
+            });
+
+            $(document).ready(function() {
+                $('#datatable-export').on('click', '.editbtn', function() {
+                    event.preventDefault();
+                    var id = $(this).data('id');
+                    var product = $(this).data('product');
+                    var quantity = $(this).data('quantity');
+                    $('#edit_id').val(id);
+                    $(".edit_product").val(product).trigger('change');
+                    console.log(product)
+                    $('.edit_quantity').val(quantity);
+                    $('.btn-block').text("Update Changes");
                 });
 
-                // Update the subtotal display
-                document.querySelector('span#subtotal').textContent = `IDR ${total.toLocaleString()}`;
-                const tax = total * 0.1; // Example tax rate of 10%
-                document.querySelector('span#tax').textContent = `IDR ${tax.toLocaleString()}`;
-                document.querySelector('span#total').textContent = `IDR ${(total + tax).toLocaleString()}`;
-            }
-        });
-
-
-        // Tambahkan updateTotals di event listener add/remove
-        document.querySelectorAll('.add-to-cart').forEach(button => {
-            button.addEventListener('click', function() {
-                updateTotals();
-            });
-        });
-        document.querySelectorAll('.remove-item').forEach(button => {
-            button.addEventListener('click', function() {
-                updateTotals();
-            });
-        });
-
-        $(document).ready(function() {
-
-            $('#datatable-export').on('click', '.editbtn', function() {
-                event.preventDefault();
-                var id = $(this).data('id');
-                var product = $(this).data('product');
-                var quantity = $(this).data('quantity');
-                $('#edit_id').val(id);
-                $(".edit_product").val(product).trigger('change');
-                console.log(product)
-                $('.edit_quantity').val(quantity);
-                $('.btn-block').text("Update Changes");
-
-            });
-
-            $('#add_new').on('click', function() {
-                event.preventDefault();
-                $('#edit_id').val('');
-                $(".edit_product").val('').trigger('change');
-                $('.edit_quantity').val(1);
-                $('.btn-block').text("Save Changes");
-
+                $('#add_new').on('click', function() {
+                    event.preventDefault();
+                    $('#edit_id').val('');
+                    $(".edit_product").val('').trigger('change');
+                    $('.edit_quantity').val(1);
+                    $('.btn-block').text("Save Changes");
+                });
             });
         });
     </script>
