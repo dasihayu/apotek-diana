@@ -43,7 +43,10 @@ class SalesController extends Controller
     public function store(Request $request)
     {
         try {
-            $orderData = $request->input('order_data');
+            $orderData = json_decode($request->input('order_data'), true);
+            $paymentMethod = $request->input('payment_method');
+            
+            
 
             foreach ($orderData as $order) {
                 $this->validate($request, [
@@ -69,6 +72,7 @@ class SalesController extends Controller
                             'product_id' => $order['productId'],
                             'quantity' => $order['quantity'],
                             'total_price' => ($order['quantity']) * ($sold_product->price),
+                            'payment_method' => $paymentMethod
                         ]
                     );
 

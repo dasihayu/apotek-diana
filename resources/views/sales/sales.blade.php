@@ -133,12 +133,99 @@
     <!-- Delete Modal -->
     <x-modals.delete :route="'sales'" :title="'Product Sale'" />
     <!-- /Delete Modal -->
+
+    <div class="modal fade" id="invoiceModal" tabindex="-1" role="dialog" aria-labelledby="invoiceModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="invoiceModalLabel">Invoice</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div id="invoice-content">
+                        <h4 class="text-center">Invoice</h4>
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoice-items">
+                                <!-- Items akan diisi melalui JavaScript -->
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="3" class="text-right"><strong>Subtotal:</strong></td>
+                                    <td id="invoice-subtotal">Rp. 0.00</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="3" class="text-right"><strong>Tax (10%):</strong></td>
+                                    <td id="invoice-tax">Rp. 0.00</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="3" class="text-right"><strong>Total:</strong></td>
+                                    <td id="invoice-total">Rp. 0.00</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal" aria-label="Close"
+                        id="close-invoice-modal">Close</button>
+                    <button id="print-invoice" type="button" class="btn btn-primary">Print</button>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
 
 @push('page-js')
     <!-- Select2 js-->
     <script src="{{ asset('jambasangsang/assets/select2/js/select2.min.js') }}"></script>
+    <script>
+        document.getElementById('print-invoice').addEventListener('click', () => {
+            const printContent = document.getElementById('invoice-content').innerHTML;
+            const apotekName = "Apotek Diana ";
+            const apotekAddress = "Desa Tanggeran, RT 005 / RW 01, Sruweng, Kebumen";
+            const win = window.open('', '', 'width=900,height=700');
+            win.document.write(`
+                <html>
+                    <head>
+                        <title>Invoice</title>
+                        <style>
+                            /* Add your custom styles here */
+                            body { font-family: Arial, sans-serif; }
+                            .container { margin: 20px; }
+                            .text-center { text-align: center; }
+                            .table-responsive { overflow-x: auto; }
+                            table { width: 100%; border-collapse: collapse; }
+                            th, td { border: 1px solid #ddd; padding: 8px; }
+                            th { background-color: #f2f2f2; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <h3 class="text-center">${apotekName}</h3>
+                            <p class="text-center">${apotekAddress}</p>
+                            <div class="table-responsive">
+                                ${printContent}
+                            </div>
+                        </div>
+                    </body>
+                </html>
+            `);
+            win.document.close();
+            win.print();
+        });
+    </script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const ordersList = document.getElementById('current-orders-list');
@@ -263,19 +350,60 @@
 
             // Event listener for "Proceed to Payment" button
             document.getElementById('proceed-to-payment').addEventListener('click', function() {
-                const orderData = collectOrderData();
-                document.getElementById('order-data').value = JSON.stringify(orderData);
+                const orderItems = document.querySelectorAll('#current-orders-list .list-group-item');
+                const invoiceItems = document.getElementById('invoice-items');
+                invoiceItems.innerHTML = '';
 
-                // Submit the form using AJAX
+                orderItems.forEach(item => {
+                    const itemName = item.querySelector('div').textContent.trim();
+                    const quantity = item.querySelector('.quantity-input').value;
+                    const price = item.querySelector('.total-price').textContent.trim();
+
+                    const row = `<tr>
+                                <td>${itemName}</td>
+                                <td>${quantity}</td>
+                                <td>${price}</td>
+                                <td>${price}</td>
+                            </tr>`;
+                    invoiceItems.innerHTML += row;
+                });
+
+                document.getElementById('invoice-subtotal').textContent = document.getElementById(
+                    'subtotal').textContent;
+                document.getElementById('invoice-tax').textContent = document.getElementById('tax')
+                    .textContent;
+                document.getElementById('invoice-total').textContent = document.getElementById('total')
+                    .textContent;
+
+
+
+
+                const orderData = collectOrderData();
+                const paymentMethod = document.querySelector('input[name="payment_method"]:checked');
+
+                if (!paymentMethod) {
+                    alert('Please select a payment method!');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('_token', document.querySelector('input[name="_token"]').value);
+                // Kirim order_data sebagai array
+                formData.append('order_data', JSON.stringify(orderData));
+                formData.append('payment_method', paymentMethod.value);
+
+                // Debug untuk memastikan data terkirim dengan benar
+                console.log('Sending data:', {
+                    order_data: orderData,
+                    payment_method: paymentMethod.value
+                });
+
                 fetch(document.getElementById('order-form').action, {
                         method: 'POST',
+                        body: formData,
                         headers: {
-                            'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
-                        },
-                        body: JSON.stringify({
-                            order_data: orderData
-                        })
+                        }
                     })
                     .then(response => {
                         if (!response.ok) {
@@ -284,13 +412,11 @@
                         return response.json();
                     })
                     .then(data => {
-                        // Handle the response from the server
-                        console.log(data);
                         if (data.success) {
-                            alert('Order placed successfully!');
-                            window.location.reload();
+
+                            $('#invoiceModal').modal('show');
                         } else {
-                            alert('There was an error placing the order.');
+                            alert(data.message || 'There was an error placing the order.');
                         }
                     })
                     .catch(error => {
@@ -332,6 +458,11 @@
                     $('.btn-block').text("Save Changes");
                 });
             });
+        });
+    </script>
+    <script>
+        document.getElementById('close-invoice-modal').addEventListener('click', () => {
+            location.reload(); // Reload the page when the close button is clicked
         });
     </script>
 @endpush
