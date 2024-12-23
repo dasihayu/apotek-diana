@@ -67,6 +67,7 @@
                                     <th>Quantity</th>
                                     <th>Unit Price</th>
                                     <th>Total Price</th>
+                                    <th>Payment Method</th>
                                     <th>Date</th>
                                     <th class="action-btn">Action</th>
                                 </tr>
@@ -80,6 +81,15 @@
                                             <td>{{ AppSettings::get('app_currency', '$') }} {{ $sale->product->price }}
                                             </td>
                                             <td>{{ AppSettings::get('app_currency', '$') }} {{ $sale->total_price }}</td>
+                                            <td>
+                                                @if ($sale->payment_method == 1)
+                                                    Cash
+                                                @elseif ($sale->payment_method == 2)
+                                                    Transfer
+                                                @else
+                                                    Unknown
+                                                @endif
+                                            </td>
                                             <td>{{ date_format(date_create($sale->created_at), 'd M, Y') }}</td>
                                             <td>
                                                 <div class="actions">
@@ -139,14 +149,14 @@
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="invoiceModalLabel">Invoice</h5>
+                    <h5 class="modal-title" id="invoiceModalLabel">Nota</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
                 <div class="modal-body">
                     <div id="invoice-content">
-                        <h4 class="text-center">Invoice</h4>
+                        <h4 class="text-center">Nota</h4>
                         <table class="table table-bordered">
                             <thead>
                                 <tr>
@@ -199,7 +209,7 @@
             win.document.write(`
                 <html>
                     <head>
-                        <title>Invoice</title>
+                        <title>Nota</title>
                         <style>
                             /* Add your custom styles here */
                             body { font-family: Arial, sans-serif; }
